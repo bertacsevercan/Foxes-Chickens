@@ -4,20 +4,15 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    public Camera gameCamera;
+    public Camera mainCamera;
+    public Camera boatCamera;
 
     private Animal m_Selected;
-
-    // Start is called before the first frame update
-    void Start()
-    {
-
-    }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (!GameManager.Instance.isGameOver && !Boat.Instance.isMoving && Input.GetMouseButtonDown(0))
         {
             HandleSelection();
         }
@@ -25,20 +20,33 @@ public class Player : MonoBehaviour
 
     void HandleSelection()
     {
-        var ray = gameCamera.ScreenPointToRay(Input.mousePosition);
+        var mainRay = mainCamera.ScreenPointToRay(Input.mousePosition);
+
         RaycastHit hit;
-        if (Physics.Raycast(ray, out hit))
+
+        if (Physics.Raycast(mainRay, out hit))
         {
-            var animal = hit.collider.GetComponent<Animal>();
+            var animal = hit.collider.GetComponentInParent<Animal>();
             m_Selected = animal;
 
             if (m_Selected != null)
             {
+                m_Selected.Talk();
                 m_Selected.GoTo();
-
             }
+        }
 
-            print(m_Selected);
+        var boatRay = boatCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(boatRay, out hit))
+        {
+            var animal = hit.collider.GetComponentInParent<Animal>();
+            m_Selected = animal;
+
+            if (m_Selected != null)
+            {
+                m_Selected.Talk();
+                m_Selected.GoTo();
+            }
         }
     }
 }

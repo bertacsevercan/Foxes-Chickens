@@ -4,9 +4,5 @@ using UnityEngine;
 
 public class Fox : Animal
 {
-    protected override void Interact()
-    {
-
-    }
 
 }

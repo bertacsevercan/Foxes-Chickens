@@ -5,83 +5,109 @@ using UnityEngine;
 public abstract class Animal : MonoBehaviour
 {
     private AudioSource audioSource;
-    private Animator animator;
 
     private Vector3 startPos;
+    private Vector3 offset;
 
-    public Transform boatPos;
-    public Transform groundPos;
+    private bool isOnBoat;
 
-    public bool isOnGround;
-    public bool isOnBoat;
-    public bool isOnStartZone;
-    public bool isOnEndZone;
+    public AudioClip audioClip;
 
-    public static Animal Instance { get; set; }
+    public bool isOnStartGround;
+    public bool isOnEndGround;
 
     // Start is called before the first frame update
     void Start()
     {
-        Instance = this;
-        isOnStartZone = true;
-        isOnEndZone = false;
+        isOnStartGround = true;
+        isOnEndGround = false;
         audioSource = GetComponent<AudioSource>();
-        animator = GetComponent<Animator>();
-        getStartingPos();
+        GetStartingPos();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void Talk()
     {
-
+        audioSource.PlayOneShot(audioClip, 1.0f);
     }
 
-    public void Talk(AudioClip audio)
+    public void GoTo()
     {
+        offset = new Vector3(4, 3, 1);
+        Vector3 boatPos = Boat.Instance.transform.position;
 
-        audioSource.PlayOneShot(audio, 1.0f);
-    }
+        if (Boat.Instance.animalCount == 1)
+        {
+            float animalPosZ = Mathf.Round(GetAnimalOnBoatPosition().z);
+            float movePosZ = Mathf.Round((boatPos + offset).z);
 
-    public void Die()
-    {
-        animator.SetBool("death", true);
-    }
+            if (animalPosZ == movePosZ)
+            {
+                offset = 2 * (Vector3.back);
+            }
+            else
+            {
+                offset = 2 * (Vector3.forward);
 
-    protected abstract void Interact();
+            }
+            boatPos = GetAnimalOnBoatPosition();
+        }
 
-    public virtual void GoTo()
-    {
-        Vector3 offset = new Vector3(4, 3, 1);
-        if (isOnGround)
-            gameObject.transform.position = boatPos.position + offset;
-        else if (isOnBoat && isOnStartZone)
-            gameObject.transform.position = startPos;
-        else if (isOnBoat && isOnEndZone)
-            gameObject.transform.position = -startPos;
+        if (Boat.Instance.isOnEndZone && isOnEndGround && !isOnBoat && !Boat.Instance.IsBoatFull())
+        {
+            transform.position = boatPos + offset;
+        }
+        else if (Boat.Instance.isOnStartZone && isOnStartGround && !isOnBoat && !Boat.Instance.IsBoatFull())
+        {
+            transform.position = boatPos + offset;
+        }
+        else if (isOnBoat && Boat.Instance.isOnStartZone)
+        {
+            transform.position = startPos;
 
+        }
+        else if (isOnBoat && Boat.Instance.isOnEndZone)
+        {
+            transform.position = -startPos;
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
         var ground = collision.gameObject.GetComponent<Ground>();
         var boat = collision.gameObject.GetComponent<Boat>();
+        var startGround = collision.gameObject.CompareTag("Start");
+        var endGround = collision.gameObject.CompareTag("End");
 
         if (ground)
         {
-            isOnGround = true;
             isOnBoat = false;
+            if (startGround)
+            {
+                isOnStartGround = true;
+                isOnEndGround = false;
+            }
+
+            else if (endGround)
+            {
+                isOnEndGround = true;
+                isOnStartGround = false;
+            }
         }
         else if (boat)
         {
             isOnBoat = true;
-            isOnGround = false;
         }
 
     }
 
-    void getStartingPos()
+    private void GetStartingPos()
     {
-        startPos = gameObject.transform.position;
+        startPos = transform.position;
+    }
+
+    private Vector3 GetAnimalOnBoatPosition()
+    {
+        return Boat.Instance.animals[0].transform.position;
     }
 
 

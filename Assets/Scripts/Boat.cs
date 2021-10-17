@@ -4,79 +4,154 @@ using UnityEngine;
 
 public class Boat : MonoBehaviour
 {
-    private float speed = 5.0f;
-    private bool isMoving;
-    private bool isOnMid;
+    // this class should be a singleton and static
+    public static Boat Instance { get; set; }
+
+    public bool isOnStartZone;
+    public bool isOnEndZone;
+    public bool isMoving;
+    public bool isStartKeyPressed;
+
+    public int animalCount = 0;
+
+    public Transform startZone;
+    public Transform endZone;
+
+    public List<Animal> animals;
+
+    public AudioClip audioClip;
+
+    private AudioSource audioSource;
+
+    private readonly int maxAnimalOnBoat = 2;
+
+    private readonly float speed = 15.0f;
+
+
     // Start is called before the first frame update
     void Start()
     {
+        if (Instance != null)
+        {
+            Destroy(Instance);
+            return;
+        }
+        Instance = this;
+        audioSource = GetComponent<AudioSource>();
         isMoving = false;
-        isOnMid = false;
+        isOnStartZone = true;
+        isOnEndZone = false;
+        isStartKeyPressed = false;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (!isMoving && Input.GetButtonDown("Jump"))
+        if (IsBoatReady() && isStartKeyPressed)
         {
+            PlayAudio();
             isMoving = true;
-            StartCoroutine("Stop");
+            isStartKeyPressed = false;
+            GameManager.Instance.UpdateScore(1);
         }
-        Move();
+
+        if (!GameManager.Instance.isGameOver)
+        {
+            Move();
+        }
+
+        if (isMoving)
+        {
+            StartZone.Instance.Fail();
+            EndZone.Instance.Fail();
+            EndZone.Instance.Win();
+        }
     }
 
     private void Move()
     {
-        if (isMoving && Animal.Instance.isOnStartZone)
-            gameObject.transform.Translate(Vector3.forward * speed * Time.deltaTime);
+        if (isMoving && isOnStartZone)
+            transform.Translate(speed * Time.deltaTime * Vector3.forward);
 
-        else if (isMoving && Animal.Instance.isOnEndZone)
-            gameObject.transform.Translate(Vector3.back * speed * Time.deltaTime);
-
-    }
-
-    IEnumerator Stop()
-    {
-        yield return new WaitForSeconds(12.0f);
-        isMoving = false;
+        else if (isMoving && isOnEndZone)
+            transform.Translate(speed * Time.deltaTime * Vector3.back);
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.name == "Start Zone")
         {
-            Animal.Instance.isOnStartZone = true;
-            Animal.Instance.isOnEndZone = false;
+            isOnStartZone = true;
+            isOnEndZone = false;
         }
         else if (other.name == "End Zone")
         {
-            Animal.Instance.isOnStartZone = false;
-            Animal.Instance.isOnEndZone = true;
+            isOnStartZone = false;
+            isOnEndZone = true;
+        }
 
-        }
-        else if (other.name == "Mid Zone")
-        {
-            isOnMid = true;
-        }
-        print(other.name);
+        isMoving = false;
+
+        animals.ForEach(GetOff);
+
+        StartCoroutine(CheckGame());
+    }
+
+    IEnumerator CheckGame()
+    {
+        yield return new WaitForSeconds(0.1f);
+
+        StartZone.Instance.Fail();
+        EndZone.Instance.Fail();
+        EndZone.Instance.Win();
+
     }
 
     private void OnCollisionEnter(Collision collision)
     {
+        var animal = collision.collider.GetComponentInParent<Animal>();
 
-        if (collision.gameObject.GetComponentInParent<Animal>())
+        if (animal)
         {
-            collision.collider.transform.SetParent(transform);
+            animal.transform.SetParent(transform);
+            animalCount++;
+            animals.Add(animal);
         }
-
     }
 
     private void OnCollisionExit(Collision collision)
     {
+        var animal = collision.collider.GetComponentInParent<Animal>();
 
-        if (collision.gameObject.GetComponentInParent<Animal>())
+        if (animal)
         {
-            collision.collider.transform.SetParent(null);
+            animal.transform.SetParent(null);
+            animalCount--;
+            animals.Remove(animal);
         }
+    }
+
+    public bool IsBoatFull()
+    {
+        if (animalCount == maxAnimalOnBoat)
+            return true;
+        return false;
+    }
+
+    public bool IsBoatReady()
+    {
+        if (animalCount > 0 && !isMoving)
+            return true;
+        return false;
+    }
+
+    private void GetOff(Animal animal)
+    {
+        animal.GoTo();
+    }
+
+    private void PlayAudio()
+    {
+        audioSource.PlayOneShot(audioClip, 1.0f);
     }
 }
